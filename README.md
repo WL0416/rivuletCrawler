@@ -1,2 +1,7 @@
 # rivuletCrawler
-Developed for personal purpose
+Developed for personal purpose.
+
+Usage:
+
+# run the crawler script
+scrapy crawl <name>
