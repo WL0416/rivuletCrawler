@@ -1,5 +1,8 @@
 import scrapy
 from xlwt import *
+import os
+from xlutils.copy import copy
+from xlrd import open_workbook
 
 class NewlineSpider(scrapy.Spider):
 
@@ -88,11 +91,66 @@ class NewlineSpider(scrapy.Spider):
                 value = category_data[row_index][column_index]
                 category_sheet.write(row_index, column_index, value)
 
+        crawled_book.save('newline_crawled.xls')
+
+        # if the category link list is not empty.
         while len(ready_crawl_links) > 0:
-            
             next_page = ready_crawl_links.pop()
             next_page = response.urljoin(next_page)
-            yield scrapy.Request(next_page, callback=self.parse)
-            print(response.css('div.row.products-category').extract())
+            yield scrapy.Request(next_page, callback=self.parse_category)
 
-        crawled_book.save('newline_crawled.xls')
+    def parse_category(self, response):
+        
+        content = response.css('div#content h1::text').extract()
+
+        if len(content) > 0:
+            
+            for product in response.css('div.product-thumb'):
+
+                products = product.css('h4 a::attr(href)').extract()
+
+                while len(products) > 0:
+                    next_page = products.pop()
+                    next_page = response.urljoin(next_page)
+                    yield scrapy.Request(next_page, callback=self.parse_products)     
+
+    def parse_products(self, response):  
+
+        rexcel = open_workbook("newline_crawled.xls")
+        row = rexcel.sheets()[0].nrows
+        excel = copy(rexcel)
+        table = excel.get_sheet(0)
+        item_category = response.css('ul.breadcrumb li span::text').extract()[-2]
+        
+        for product_info in response.css('div.col-sm-9'):
+                
+            item_sku = product_info.css('ul.list-unstyled.description li span#uo_sku_model::text').extract_first()
+            item_mode = product_info.css('ul.list-unstyled.description li span#uo_sku_model::text').extract_first()
+            item_otherid = ''
+            item_name = product_info.css('h1::text').extract_first().strip()
+            # print(item_name)
+            item_description = product_info.css('span#tab-description p::text').extract()
+            item_description = '\n'.join(item_description)
+            # print(item_description)
+            item_photo_name = product_info.css('img::attr(src)').extract_first().split('/')[-1].strip()
+            # print(item_photo_name)
+            item_photo_link = product_info.css('img::attr(src)').extract()
+            item_photo_link = '\n'.join(item_photo_link)
+            # print(item_photo_link)
+            item_price = product_info.css('span#uo_price::text').extract_first()
+            # print(item_price)
+            
+            item = (item_sku, 
+                    item_mode, 
+                    item_otherid, 
+                    item_name, 
+                    item_description, 
+                    item_photo_name,
+                    item_photo_link,
+                    item_category,
+                    item_price)
+
+            for index in range(len(item)):
+                table.write(row, index, item[index])
+
+        excel.save("newline_crawled.xls")
