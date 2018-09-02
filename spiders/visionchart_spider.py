@@ -72,83 +72,62 @@ class NewlineSpider(scrapy.Spider):
 
             count -= 1
 
-        print(categories)
-        print(links)        
-
-        # check if the element is empty in category list, if it is empty, remove it.
-        # remove category list and link list at the same time
-        # for index in range(len(categories)):
-        #     if len(categories[index]) is 0:
-        #         categories.pop(index)
-        #         links.pop(index)
+        # print(categories)
+        # print(links)
         
-        # category_id = 0
-        # category_data = []
-        # previous_len = None
-        # parents = []
-        # ready_crawl_links = []
-        # # operate the link string, check the 
-        # for link_group_index in range(len(links)):
-        #     for link_index in range(len(links[link_group_index])):
-        #         current_link = links[link_group_index][link_index]
-        #         link_splited = current_link.split('/')
-        #         # if link char list's length is 4, it indicates the top category
-        #         # category is tuple (parent id, category name, category id)
-        #         current_len = len(link_splited)
-        #         if current_len is 4:
-        #             parents = []
-        #             category = ('', categories[link_group_index][link_index].strip(), str(category_id))
-        #             previous_len = current_len
-        #         else:
-        #             if current_len > previous_len:
-        #                 parents.append(str(category_id))
-        #             elif current_len < previous_len:
-        #                 parents.pop()
-        #                 ready_crawl_links.pop()
-        #             category_id += 1
-        #             parent_str = ''
-        #             for index in range(len(parents)):
-        #                 if index > 0:
-        #                     parent_str += ','
-        #                 parent_str += parents[index]
+        category_id = 0
+        category_data = []
+        links = links[0]
+        ready_crawl_links = []
+        # write categories into the excel and filter exsiting links
+        for category_group in categories:
+
+            if len(category_group) > 1:
+                parent_id = category_id
+
+            for index in range(len(category_group)):
+                
+                if index == 0:
                     
-        #             category = (parent_str, 
-        #                         categories[link_group_index][link_index].strip(), 
-        #                         str(category_id))
-
-        #             ready_crawl_links.append(current_link)
-
-        #             previous_len = current_len
-
-        #         category_data.append(category)
-
-        # for row_index in range(len(category_data)):
-        #     for column_index in range(len(category_data[row_index])):
-        #         value = category_data[row_index][column_index]
-        #         category_sheet.write(row_index, column_index, value)
+                    category = ('', category_group[index], str(category_id))
+                
+                else:
+                    
+                    category = (str(parent_id), category_group[index], str(category_id))
+                    
+                    ready_crawl_links.append(links[category_id])
+                
+                category_id += 1
+                
+                category_data.append(category)
+        
+        for row_index in range(len(category_data)):
+            for column_index in range(len(category_data[row_index])):
+                value = category_data[row_index][column_index]
+                category_sheet.write(row_index, column_index, value)
 
         crawled_book.save('visionchart_crawled.xls')
 
-    #     # if the category link list is not empty.
-    #     while len(ready_crawl_links) > 0:
-    #         next_page = ready_crawl_links.pop()
-    #         next_page = response.urljoin(next_page)
-    #         yield scrapy.Request(next_page, callback=self.parse_category)
+        # if the category link list is not empty.
+        while len(ready_crawl_links) > 0:
+            next_page = ready_crawl_links.pop()
+            next_page = response.urljoin(next_page)
+            yield scrapy.Request(next_page, callback=self.parse_category)
 
-    # def parse_category(self, response):
+    def parse_category(self, response):
         
-    #     content = response.css('div#content h1::text').extract()
+        product_links = []
 
-    #     if len(content) > 0:
-            
-    #         for product in response.css('div.product-thumb'):
+        for product in response.css('div.clearfix.colelem.shared_content'):
 
-    #             products = product.css('h4 a::attr(href)').extract()
+            product_links = product.css('span.actAsInlineDiv.normal_text a::attr(href)').extract()
 
-    #             while len(products) > 0:
-    #                 next_page = products.pop()
-    #                 next_page = response.urljoin(next_page)
-    #                 yield scrapy.Request(next_page, callback=self.parse_products)     
+            print(product_links)
+                
+        # while len(product_links) > 0:
+        #     next_page = product_links.pop()
+        #     next_page = response.urljoin(next_page)
+        #     yield scrapy.Request(next_page, callback=self.parse_products)     
 
     # def parse_products(self, response):  
 
