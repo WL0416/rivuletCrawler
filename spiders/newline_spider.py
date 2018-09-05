@@ -145,7 +145,7 @@ class NewlineSpider(scrapy.Spider):
             for link in item_photo_link:
                 
                 urllib.urlretrieve(link, 'images/newline/' + item_name + '/' + item_name + '_' + str(image_count) + '.png')
-                time.sleep(2)
+                time.sleep(1)
 
                 image_count += 1
 

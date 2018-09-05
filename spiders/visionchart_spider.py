@@ -5,6 +5,7 @@ from xlutils.copy import copy
 from xlrd import open_workbook
 from scrapy.selector import Selector as selector
 import urllib
+import time
 
 class NewlineSpider(scrapy.Spider):
 
@@ -148,6 +149,8 @@ class NewlineSpider(scrapy.Spider):
             image_link = 'http://www.visionchart.com.au' + link
 
             urllib.urlretrieve(image_link, 'images/visionchart/' + item_name + '/' + item_name + '_' + str(image_count) + '.png')
+
+            time.sleep(1)
 
             image_count += 1
 
