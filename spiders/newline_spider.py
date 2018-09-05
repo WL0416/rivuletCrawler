@@ -3,6 +3,7 @@ from xlwt import *
 import os
 from xlutils.copy import copy
 from xlrd import open_workbook
+import urllib
 
 class NewlineSpider(scrapy.Spider):
 
@@ -135,6 +136,17 @@ class NewlineSpider(scrapy.Spider):
             item_photo_name = product_info.css('img::attr(src)').extract_first().split('/')[-1].strip()
             # print(item_photo_name)
             item_photo_link = product_info.css('img::attr(src)').extract()
+
+            if not os.path.exists('images/newline/' + item_name):
+                os.makedirs('images/newline/' + item_name)
+
+            image_count = 0
+            for link in item_photo_link:
+
+                urllib.urlretrieve(link, 'images/newline/' + item_name + '/' + item_name + '_' + str(image_count) + '.png')
+
+                image_count += 1
+
             item_photo_link = '\n'.join(item_photo_link)
             # print(item_photo_link)
             item_price = product_info.css('span#uo_price::text').extract_first()

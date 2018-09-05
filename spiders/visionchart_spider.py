@@ -4,6 +4,7 @@ import os
 from xlutils.copy import copy
 from xlrd import open_workbook
 from scrapy.selector import Selector as selector
+import urllib
 
 class NewlineSpider(scrapy.Spider):
 
@@ -19,7 +20,7 @@ class NewlineSpider(scrapy.Spider):
 
     def parse(self, response):
 
-        page = response.url.split('/')[-2]
+        page = response.url.split('/')[-1]
         
         filename = 'pages/%s.html' % page
         
@@ -113,19 +114,17 @@ class NewlineSpider(scrapy.Spider):
         while len(ready_crawl_links) > 0:
             next_page = ready_crawl_links.pop()
             next_page = response.urljoin(next_page)
+            print('This is next cate page: ' + next_page)
             yield scrapy.Request(next_page, callback=self.parse_category)
 
     def parse_category(self, response):
-        
-        page = response.url
 
         products = response.css('span.actAsInlineDiv.normal_text a::attr(href)').extract()
-
-        print(products)
 
         while len(products) > 0:
             next_page = products.pop()
             next_page = response.urljoin(next_page)
+            print('This is next prod page: ' + next_page)
             yield scrapy.Request(next_page, callback=self.parse_products)
 
     def parse_products(self, response):  
@@ -135,25 +134,86 @@ class NewlineSpider(scrapy.Spider):
         excel = copy(rexcel)
         table = excel.get_sheet(0)
 
+        item_name = response.css('h3.H3::text').extract_first()
         item_category = response.css('a.nonblock::text').extract()[-1].strip()
 
-        item_name = response.css('h3::text').extract_first()
+        item_photo_link = response.css('img.block::attr(data-src)').extract()
 
-        item_photo_link = response.css('div.popup_anchor div.SSSlideLinks.clearfix img::attr(src)').extract()
-        # item_photo_link = '\n'.join(item_photo_link)
+        if not os.path.exists('images/visionchart/' + item_name):
+            os.makedirs('images/visionchart/' + item_name)
 
-        #     item_sku = product_info.css('ul.list-unstyled.description li span#uo_sku_model::text').extract_first()
-        #     item_mode = product_info.css('ul.list-unstyled.description li span#uo_sku_model::text').extract_first()
-        #     item_otherid = ''
-        #     item_name = product_info.css('h1::text').extract_first().strip()
-        #     # print(item_name)
-        #     item_description = product_info.css('span#tab-description p::text').extract()
-        #     item_description = '\n'.join(item_description)
-        #     # print(item_description)
-        #     item_photo_name = product_info.css('img::attr(src)').extract_first().split('/')[-1].strip()
-        #     # print(item_photo_name)
-        #     item_photo_link = product_info.css('img::attr(src)').extract()
-        #     item_photo_link = '\n'.join(item_photo_link)
+        image_count = 0
+        for link in item_photo_link:
+            
+            image_link = 'http://www.visionchart.com.au' + link
+
+            urllib.urlretrieve(image_link, 'images/visionchart/' + item_name + '/' + item_name + '_' + str(image_count) + '.png')
+
+            image_count += 1
+
+        links_in_excel = '\n'.join(item_photo_link)
+
+        item_description = None
+        for item in response.css('div.clearfix.grpelem'):
+            if len(item.css('h3.H3').extract()) > 0:
+                item_description = item.xpath('string(.)').extract()
+        
+        description = ''
+        item_sku = []
+        item_size = []
+        seperate_des = []
+        rest_des = []
+        description_finish = False
+        column_num = 0
+        devident = 1
+        if item_description is not None:
+            for des in item_description:
+                des = des.replace('\r\n','').split('       ')
+                for d in des:
+                    if len(d) > 0:
+                        d = d.strip()
+                        if d == 'CODE':
+                            
+                            description_finish = True
+                            continue
+
+                        if not description_finish and d is not item_name:
+                            
+                            description += d
+                            continue
+                        
+                        if d == 'DESCRIPTION':
+                            devident += 1
+                            continue
+
+                        d = d.replace(u'\xa0', u' ')
+
+                        if d == 'SIZE  (mm)':
+                            devident +=1
+                            continue
+
+                        rest_des.append(d + ',')
+
+        # stop = len(rest_des) / devident
+        # list_count = 0
+        # for info_index in range(len(rest_des)):
+
+        #     if list_count == 0:
+
+        #         item_sku.append(rest_des[info_index])
+            
+        #     if info_index > 0 and (info_index + 1) % devident == 0:
+
+        #         list_count += 1
+
+        #     if list_count == 1:
+                
+        #         seperate_des.append(rest_des[info_index])
+        #         continue
+
+        #     if list_count == 2:
+                
+        #           item_size.append(rest_des[info_index])
         #     # print(item_photo_link)
         #     item_price = product_info.css('span#uo_price::text').extract_first()
         #     # print(item_price)
@@ -162,14 +222,22 @@ class NewlineSpider(scrapy.Spider):
                 # item_mode, 
                 # item_otherid, 
                 item_name, 
-                # item_description, 
+                description, 
                 # item_photo_name,
-                # item_photo_link,
+                links_in_excel,
                 item_category,
+                rest_des,
                 # item_price
                 )
 
+        item_name = ('Name', 'Description', 'Images', 'Category', 'SKU & SIZE')
+
         for index in range(len(item)):
-            table.write(row, index, item[index])
+            
+            if row == 0:
+                table.write(row, index, item_name[index])
+                table.write(row + 1, index, item[index])
+            else:
+                table.write(row, index, item[index])
 
         excel.save('visionchart_crawled.xls')
