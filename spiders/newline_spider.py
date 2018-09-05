@@ -4,6 +4,7 @@ import os
 from xlutils.copy import copy
 from xlrd import open_workbook
 import urllib
+import time
 
 class NewlineSpider(scrapy.Spider):
 
@@ -142,8 +143,9 @@ class NewlineSpider(scrapy.Spider):
 
             image_count = 0
             for link in item_photo_link:
-
+                
                 urllib.urlretrieve(link, 'images/newline/' + item_name + '/' + item_name + '_' + str(image_count) + '.png')
+                time.sleep(2)
 
                 image_count += 1
 
